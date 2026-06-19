@@ -1,19 +1,24 @@
-# Copyright 2026 Ubuntu
+# Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 [project]
 name = "zammad"
-version = "0.0.1"
+version = "0.1.0"
 requires-python = ">=3.10"
 
-# Dependencies of the charm code
-# You should list the dependencies of the code in src/, including any charm libraries from PyPI.
-# We recommend using uv to maintain this list. For example, 'uv add charmlibs-pathops'.
-# If your code uses any libraries from Charmhub, don't list those libraries here. Instead, add a
-# 'charm-libs' block in charmcraft.yaml, run `charmcraft fetch-libs` to download the libraries,
-# then inspect the libraries for dependencies specified in PYDEPS. List those dependencies here.
+# Dependencies of the charm code (src/) and vendored charm libraries.
+# Vendored libs and their PYDEPS:
+#   - charms.data_platform_libs.v0.data_interfaces  (ops)
+#   - charms.grafana_agent.v0.cos_agent             (cosl>=0.0.50, pydantic)
+#   - charms.tls_certificates_interface.v3.tls_certificates (cryptography, jsonschema)
 dependencies = [
-    "ops~=3.7"
+    "ops>=2.10,<4.0",
+    "cosl>=0.0.50",
+    "pydantic>=2.0",
+    "cryptography>=42.0",
+    "jsonschema>=4.0",
+    "jinja2>=3.1",
+    "pyyaml>=6.0",
 ]
 
 [dependency-groups]
@@ -28,6 +33,7 @@ unit = [
     "coverage[toml]",
     "ops[testing]",
     "pytest",
+    "pyyaml>=6.0",
 ]
 # Dependencies of integration tests
 integration = [
@@ -38,6 +44,7 @@ integration = [
 # Testing tools configuration
 [tool.coverage.run]
 branch = true
+source = ["src"]
 
 [tool.coverage.report]
 show_missing = true
@@ -65,14 +72,16 @@ lint.ignore = [
     "D409",
     "D413",
 ]
-lint.per-file-ignores = {"tests/*" = ["D100","D101","D102","D103","D104"]}
-extend-exclude = ["__pycache__", "*.egg_info"]
+lint.per-file-ignores = {"tests/*" = ["D100", "D101", "D102", "D103", "D104"]}
+extend-exclude = ["__pycache__", "*.egg_info", "lib", ".tox", "build"]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 10
+max-complexity = 15
 
 [tool.codespell]
-skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage"
-
+skip = "build,lib,venv,icon.svg,.tox,.git,.mypy_cache,.ruff_cache,.coverage,uv.lock"
+ignore-words-list = ["aNULL"]
 [tool.pyright]
 include = ["src", "tests"]
+exclude = ["lib", "build", ".tox"]
+extraPaths = ["lib", "src"]

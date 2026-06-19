@@ -1,49 +1,320 @@
-# This file configures Charmcraft.
-# See https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/
 type: charm
 name: zammad
-title: Charm Template
-summary: A very short one-line summary of the charm.
-description: |
-  A single sentence that says what the charm is, concisely and memorably.
+title: Zammad
+summary: Open-source customer support and helpdesk ticketing system.
+description: 'Zammad is an open-source web-based customer support/ticketing system that
 
-  A paragraph of one to three short sentences, that describe what the charm does.
+  handles email, chat, telephone, social media and web form channels from a
 
-  A third paragraph that explains what need the charm meets.
+  single interface.
 
-  Finally, a paragraph that describes whom the charm is useful for.
 
-# Documentation:
-# https://documentation.ubuntu.com/charmcraft/stable/howto/build-guides/select-platforms/
+  This machine charm installs the official Zammad package (packager.io) on
+
+  Ubuntu and manages its systemd services. It composes with the Charmed
+
+  PostgreSQL and Redis charms via relations, and supports an external
+
+  Elasticsearch 8/9 cluster for full-text search. Day-2 operations (backup,
+
+  restore, search-index rebuild, upgrades, password reset, health checks) are
+
+  exposed as Juju actions.
+
+
+  Zammad requires PostgreSQL, Redis and Elasticsearch 8/9. PostgreSQL and Redis
+
+  are provided via Juju relations; Elasticsearch is configured via charm
+
+  options pointing at an external cluster.
+
+  '
+links:
+  website: https://zammad.org/
+  source: https://github.com/zammad/zammad
+  issues: https://github.com/zammad/zammad/issues
+  contact: https://zammad.org/
 base: ubuntu@24.04
 platforms:
-  amd64:
-  arm64:
-
+  amd64: null
+  arm64: null
 assumes:
-  - juju >= 3.6
-
+- juju >= 3.6
 parts:
   charm:
     plugin: uv
     source: .
     build-snaps:
-      - astral-uv
+    - astral-uv
+requires:
+  database:
+    interface: postgresql_client
+    limit: 1
+    description: 'Zammad''s PostgreSQL database. Relate to the charmed `postgresql` VM charm.
 
-# (Optional) Configuration options for the charm
-# This config section defines charm config options, and populates the Configure
-# tab on Charmhub.
-# More information on this section at:
-# https://documentation.ubuntu.com/charmcraft/stable/reference/files/charmcraft-yaml-file/#config
-# General configuration documentation:
-# https://documentation.ubuntu.com/juju/3.6/reference/configuration/#application-configuration
+      Required.
+
+      '
+  redis:
+    interface: redis_client
+    limit: 1
+    description: 'Redis cache / queue / session store. Relate to a charmed Redis provider.
+
+      Required.
+
+      '
+  certificates:
+    interface: tls-certificates
+    limit: 1
+    optional: true
+    description: 'TLS certificates for HTTPS. Relate to a TLS provider such as
+
+      `self-signed-certificates` or `easyrsa`. When related, nginx terminates
+
+      HTTPS with the provided certificate. Optional.
+
+      '
+provides:
+  cos-agent:
+    interface: cos_agent
+    limit: 1
+    description: 'Observability integration. Relate to the `grafana-agent` machine charm to
+
+      ship Zammad logs and node metrics to a COS stack.
+
+      '
+peers:
+  peers:
+    interface: zammad-peer
 config:
   options:
-    # An example config option to customise the log level of the workload
-    log-level:
-      description: |
-        Configures the log level of gunicorn.
+    fqdn:
+      description: 'Fully qualified domain name (or public IP) Zammad is served on. Used for
 
-        Acceptable values are: "info", "debug", "warning", "error" and "critical"
-      default: "info"
+        the nginx `server_name` and to build URLs in the web UI. If empty, the
+
+        unit''s hostname is used.
+
+        '
+      default: ''
       type: string
+    log-level:
+      description: 'Log level for the charm itself. One of: debug, info, warning, error.
+
+        '
+      default: info
+      type: string
+    elasticsearch-url:
+      description: 'URL of the external Elasticsearch 8/9 cluster, e.g.
+
+        `http://10.0.0.5:9200` or `https://search.example.com:9200`. Required
+
+        for Zammad search; the charm stays blocked until this is set and the
+
+        cluster is reachable. Zammad does not support OpenSearch.
+
+        '
+      default: ''
+      type: string
+    elasticsearch-secret-id:
+      description: 'Juju secret ID containing optional Elasticsearch credentials. The secret
+
+        must expose a `username` and a `password` key. Leave empty for
+
+        unauthenticated clusters.
+
+        '
+      default: ''
+      type: string
+    elasticsearch-index-prefix:
+      description: 'Optional prefix for Elasticsearch indices (Setting `es_index`).
+
+        '
+      default: zammad
+      type: string
+    web-concurrency:
+      description: 'Number of Puma (web) worker processes (`ZAMMAD_WEB_CONCURRENCY`). 0 lets
+
+        Zammad decide automatically based on CPU count. Only increase if you
+
+        have spare RAM.
+
+        '
+      default: 0
+      type: int
+    min-threads:
+      description: 'Minimum number of threads per Puma worker (`MIN_THREADS`).
+
+        '
+      default: 5
+      type: int
+    max-threads:
+      description: 'Maximum number of threads per Puma worker (`MAX_THREADS`).
+
+        '
+      default: 30
+      type: int
+    memcache-servers:
+      description: 'Optional comma-separated list of Memcached servers (`MEMCACHE_SERVERS`),
+
+        e.g. `memcached.local:11211`. When set, Zammad uses Memcached as an
+
+        additional cache layer.
+
+        '
+      default: ''
+      type: string
+    trusted-proxies:
+      description: 'Comma-separated list of trusted reverse proxy IPs
+
+        (`RAILS_TRUSTED_PROXIES`). Defaults to localhost.
+
+        '
+      default: 127.0.0.1,::1
+      type: string
+    backup-retention-days:
+      description: 'Number of days local backups are kept. Older backups are pruned when a
+
+        new backup runs.
+
+        '
+      default: 7
+      type: int
+    s3-endpoint:
+      description: 'Optional S3 endpoint URL for attachment file storage. When set together
+
+        with `s3-bucket` and `s3-secret-id`, Zammad stores attachments in S3
+
+        instead of the local filesystem.
+
+        '
+      default: ''
+      type: string
+    s3-bucket:
+      description: 'S3 bucket name for attachment file storage. Requires `s3-endpoint` and
+
+        `s3-secret-id`.
+
+        '
+      default: ''
+      type: string
+    s3-region:
+      description: 'S3 region for attachment file storage.
+
+        '
+      default: ''
+      type: string
+    s3-secret-id:
+      description: 'Juju secret ID containing S3 credentials. The secret must expose an
+
+        `access-key` and a `secret-key` key.
+
+        '
+      default: ''
+      type: string
+actions:
+  backup:
+    description: 'Take a Zammad backup (PostgreSQL dump + files) to a local or remote
+
+      destination. Returns the path of the created backup. Only one backup runs
+
+      at a time per unit.
+
+      '
+    params:
+      output-dir:
+        type: string
+        default: /var/backups/zammad
+        description: Directory where the backup archive is written.
+    additionalProperties: false
+  restore:
+    description: 'Restore Zammad from a backup archive previously produced by the `backup`
+
+      action. Stops Zammad, restores the PostgreSQL dump and files, clears caches,
+
+      rebuilds the Elasticsearch search index, then starts Zammad.
+
+      '
+    params:
+      backup-file:
+        type: string
+        description: Absolute path to the backup archive to restore.
+    required:
+    - backup-file
+    additionalProperties: false
+  rebuild-search-index:
+    description: 'Rebuild the Elasticsearch search index (rake `zammad:searchindex:rebuild`).
+
+      Run after restoring a backup, after changing the Elasticsearch URL, or
+
+      whenever search results look stale.
+
+      '
+    params:
+      threads:
+        type: integer
+        default: 1
+        minimum: 1
+        description: 'Number of parallel workers. Do not exceed the number of CPU cores.
+
+          '
+    additionalProperties: false
+  upgrade:
+    description: 'Upgrade the Zammad package via apt. Runs database migrations and reindexes
+
+      Elasticsearch. Optionally pin a specific version (e.g. `7.1.0`).
+
+      '
+    params:
+      version:
+        type: string
+        default: ''
+        description: 'Version to upgrade to (e.g. `7.1.0`). Empty means the latest version
+
+          from the configured repository.
+
+          '
+    additionalProperties: false
+  set-admin-password:
+    description: 'Set or reset the password of an admin Zammad user. Creates the user if it
+
+      does not exist. Useful for bootstrapping access without the web wizard.
+
+      '
+    params:
+      password:
+        type: string
+        description: New password for the admin user.
+      login:
+        type: string
+        default: admin
+        description: Login of the admin user to update or create.
+      email:
+        type: string
+        default: admin@example.com
+        description: Email of the admin user (used when creating).
+    required:
+    - password
+    additionalProperties: false
+  restart:
+    description: 'Restart Zammad services. Without arguments restarts the whole stack
+
+      (web, websocket, worker). A specific service can be targeted.
+
+      '
+    params:
+      service:
+        type: string
+        default: ''
+        description: 'One of: `web`, `websocket`, `worker`. Empty (default) restarts the
+
+          whole Zammad stack.
+
+          '
+    additionalProperties: false
+  health-check:
+    description: 'Run Zammad health checks. Reports the status of the systemd services and the
+
+      HTTP health endpoint, plus PostgreSQL, Redis and Elasticsearch connectivity.
+
+      '

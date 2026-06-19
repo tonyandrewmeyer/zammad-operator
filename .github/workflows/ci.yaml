@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-unit:
+    name: Lint, static checks, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: pip install uv
+      - name: Sync dependencies
+        run: uv sync --group unit --group lint
+      - name: Ruff format check
+        run: uv run --group lint ruff format --check --diff src tests
+      - name: Ruff check
+        run: uv run --group lint ruff check src tests
+      - name: Codespell
+        run: uv run --group lint codespell .
+      - name: Pyright
+        run: uv run --group lint pyright src
+      - name: Unit tests
+        env:
+          PYTHONPATH: lib:src
+        run: uv run --group unit coverage run --source=src -m pytest -v tests/unit && uv run --group unit coverage report
+
+  integration:
+    name: Integration tests (LXD)
+    runs-on: ubuntu-latest
+    if: false  # enable once CI has a Juju/LXD runner
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: pip install uv
+      - name: Sync dependencies
+        run: uv sync --group integration
+      - name: Setup LXD + Juju
+        run: |
+          sudo snap install --classic juju
+          juju bootstrap lxd local
+      - name: Pack and test
+        env:
+          PYTHONPATH: lib:src
+        run: |
+          charmcraft pack
+          tox -e integration

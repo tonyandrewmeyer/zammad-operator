@@ -1,0 +1,26 @@
+groups:
+  - name: zammad
+    rules:
+      # Zammad runs three systemd services under the meta `zammad.service`.
+      # The grafana-agent subordinate exports `node_systemd_unit_state` for the
+      # host's units via node_exporter's systemd collector.
+      - alert: ZammadServiceDown
+        expr: |
+          max by (job, name) (node_systemd_unit_state{name=~"zammad.*", state="active"}) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Zammad service {{ $labels.name }} is down"
+          description: |
+            The systemd unit {{ $labels.name }} has not been active for 5 minutes
+            on {{ $labels.instance }}. Run `juju run zammad/0 health-check`.
+      - alert: ZammadNginxDown
+        expr: |
+          max by (job, name) (node_systemd_unit_state{name="nginx.service", state="active"}) == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Zammad nginx is down"
+          description: "nginx is not active on {{ $labels.instance }}."

@@ -1,0 +1,49 @@
+{
+  "title": "Zammad overview",
+  "uid": "zammad-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "tags": ["zammad", "charm"],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Zammad services active",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "max by (name) (node_systemd_unit_state{name=~\"zammad.*\", state=\"active\"})",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "thresholds": { "mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}] } }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "nginx active",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 0 },
+      "targets": [
+        { "expr": "max(node_systemd_unit_state{name=\"nginx.service\", state=\"active\"})", "legendFormat": "nginx" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host CPU usage",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "avg by (instance) (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)) * 100", "legendFormat": "{{instance}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Host memory usage",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)", "legendFormat": "{{instance}}" }
+      ]
+    }
+  ]
+}
