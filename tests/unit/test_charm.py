@@ -235,7 +235,7 @@ def test_redis_changed_captures_url(harness):
 
 
 def test_db_changed_empty_waits(harness):
-    harness.charm._on_db_changed(_db_event(endpoints="", username=None))
+    harness.charm._on_db_changed(_db_event(endpoints="", username=""))
     assert harness.charm._stored.db_host == ""
 
 

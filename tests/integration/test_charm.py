@@ -59,11 +59,14 @@ def _zammad_blocked(status: jubilant.Status, needle: str) -> bool:
     app = status.apps.get("zammad")
     if app is None:
         return False
-    return app.app_status.status == "blocked" and needle in (app.app_status.message or "")
+    return app.is_blocked and needle in (app.app_status.message or "")
 
 
 @pytest.mark.skip(
-    reason="Full active path requires a machine Redis charm (not in this store) and an external Elasticsearch 8/9 cluster."
+    reason=(
+        "Full active path requires a machine Redis charm (not in this store) "
+        "and an external Elasticsearch 8/9 cluster."
+    )
 )
 def test_full_active_path(charm: pathlib.Path, juju: jubilant.Juju):
     """Placeholder for the full active-path test.
