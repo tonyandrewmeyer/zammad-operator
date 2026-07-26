@@ -27,6 +27,7 @@ lint = [
     "ruff",
     "codespell",
     "pyright",
+    "zizmor>=1.28.0",
 ]
 # Dependencies of unit tests
 unit = [
