@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import socket
 from pathlib import Path
-from typing import Optional
 
 import ops
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
@@ -366,7 +365,7 @@ class ZammadCharm(ops.CharmBase):
         path.write_bytes(pem)
         path.chmod(0o600)
 
-    def _read_private_key(self) -> Optional[str]:
+    def _read_private_key(self) -> str | None:
         path = self._private_key_path()
         if path.exists():
             return path.read_text()
